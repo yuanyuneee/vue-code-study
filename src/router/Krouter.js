@@ -12,12 +12,41 @@ class Krouter {
         // 把current变成响应式数据
         Vue.util.defineReactive(this, 'current', initial)
 
+        Vue.util.defineReactive(this, 'matched', [])
+
+        this.match()
+
+
+
         // 监听hashchange
         window.addEventListener("hashchange", () => {
             this.current = window.location.hash.slice(1);
+            this.matched = [];
+            this.match()
         });
     }
+
+    match(routes) {
+        let routers = routes || this.$options.routes;
+
+        routers.map(route => {
+            // 匹配首页
+            if (route.path === '/' && this.current === '/') {
+                this.matched.push(route);
+                return;
+            } else if (route.path !== '/' && this.current.indexOf(route.path) > -1) {
+                this.matched.push(route);
+                if (route.children) {
+                    this.match(route.children);
+                }
+            }
+        })
+
+
+    }
 }
+
+
 
 Krouter.install = function (_vue) {
     Vue =  _vue;
@@ -34,9 +63,26 @@ Krouter.install = function (_vue) {
 
     Vue.component('router-view', {
         render: function (h) {
+            this.$vnode.data.routerView = true;
+            let depth = 0;
+            let parent = this.$parent;
+            // 标记depth
+            while (parent) {
+                if (parent) {
+                    if (parent.$vnode && parent.$vnode.data.routerView) {
+                        depth++;
+                    }
+                }
+
+                parent = parent.$parent;
+            }
+
             let component = null;
-            const routes = this.$router.$options.routes;
-            const route = routes.find(i => i.path == this.$router.current);
+            let route = null;
+            route = this.$router.matched[depth];
+            // console.log('',this.$router.matched)
+            // const routes = this.$router.$options.routes;
+            // const route = routes.find(i => i.path == this.$router.current);
             if (route) {
                 component = route.component;
             }
