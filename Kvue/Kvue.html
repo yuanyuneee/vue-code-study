@@ -1,0 +1,15 @@
+<div id="app">
+    <p>{{counter}}</p>
+</div>
+<script src="./Kvue.js"></script>
+<script>
+    const app = new Kvue({
+        el:'#app',
+        data: {
+            counter: 1
+        },
+    })
+    setInterval(() => {
+        app.counter++
+    }, 1000);
+</script>

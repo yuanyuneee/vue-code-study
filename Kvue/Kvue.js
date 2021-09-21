@@ -1,3 +1,21 @@
+class Kvue {
+    constructor(options) {
+        this.$options = options;
+        this.$data = options.data;
+
+        observe(options.data)
+        // 代理到实例上
+        proxy(this)
+    }
+}
+
+function proxy(vm) {
+    Object.keys(vm.$data).forEach(key => {
+        defineReactive(vm, key, vm.$data[key])
+    })
+
+}
+
 function defineReactive(obj, key, val) {
     // 递归嵌套对象
     observe(val);
@@ -24,25 +42,3 @@ function observe(obj) {
         defineReactive(obj, key, obj[key])
     })
 }
-
-const obj = {foo:'foo',bar:'bar',baz:{a:1}}
-observe(obj)
-
-// 动态添加属性，也可以响应式
-function set(obj, key, val) {
-    defineReactive(obj, key, val)
-}
-
-// obj.foo
-// obj.foo = 'foooooooooooo'
-// obj.bar
-// obj.bar = 'barrrrrrrrrrr'
-// // obj.baz
-// obj.baz.a
-// obj.baz.a = 10 // 嵌套对象no ok
-// set(obj, 'dong', 'dong')
-// obj.dong
-obj.baz = {
-    b:2
-}
-obj.baz.b
