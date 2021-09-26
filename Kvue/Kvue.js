@@ -71,11 +71,17 @@ class Compile {
                     // 是否是指令
                     const attrName = attr.name;
                     const exp = attr.value;
-                    console.log(this.isDir(attrName))
+                    console.log('attrName',attrName,this.isEvent(attrName))
+                    // 以k-开头
                     if (this.isDir(attrName)) {
                         const dir = attrName.substring(2);
                         console.log(dir)
                         this[dir] && this[dir](exp, node);
+                    }
+                    // 以@开头
+                    if (this.isEvent(attrName)) {
+                        const dir = attrName.substring(1);
+                        this.eventHandler(exp, node, dir);
                     }
                 })
                 // 递归，遍历子节点
@@ -116,9 +122,21 @@ class Compile {
     html(exp, node) {
         node.innerHTML = this.$vm[exp];
     }
+
+    eventHandler(exp, node, dir) {
+        node.addEventListener(dir, () => {
+            this.$vm.$options.methods[exp].apply(this.$vm)
+        })
+    }
+
     // 判断是否是动态指令
     isDir(name) {
         return name.startsWith('k-');
+    }
+
+    // 判断是否是事件
+    isEvent(name) {
+        return name.startsWith('@');
     }
 
     // 解析动态属性
