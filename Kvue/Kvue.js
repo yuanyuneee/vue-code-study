@@ -26,7 +26,7 @@ function defineReactive(obj, key, val) {
     Object.defineProperty(obj, key, {
         set(newval) {
             if (val != newval) {
-                // console.log('set', newval)
+                console.log('set', newval)
                 val = newval
                 // 如果直接对属性赋值为对象，如果不再次调用，则无法响应式
                 observe(newval)
@@ -65,17 +65,14 @@ class Compile {
         Array.from(childNodes).map(node => {
             // 是否是元素
             if (this.isELement(node)) {
-                console.log('ele', node.nodeName)
                 const attrs = node.attributes;
                 Array.from(attrs).forEach(attr => {
                     // 是否是指令
                     const attrName = attr.name;
                     const exp = attr.value;
-                    console.log('attrName',attrName,this.isEvent(attrName))
                     // 以k-开头
                     if (this.isDir(attrName)) {
                         const dir = attrName.substring(2);
-                        console.log(dir)
                         this[dir] && this[dir](exp, node);
                     }
                     // 以@开头
@@ -83,13 +80,19 @@ class Compile {
                         const dir = attrName.substring(1);
                         this.eventHandler(exp, node, dir);
                     }
+
+                    // 以k-model开头
+                    if (this.isModel(attrName)) {
+                        const dir = attrName.substring(1);
+                        this.modelHandler(exp, node, dir);
+                    }
                 })
                 // 递归，遍历子节点
                 if (node.childNodes && node.childNodes.length > 0) {
                     this.compile(node);
                 }
             } else if (this.isText(node)) { // 是否是文本
-                console.log('text', node.textContent)
+                // console.log('text', node.textContent)
                 this.compileText(node)
             }
         })
@@ -120,13 +123,30 @@ class Compile {
     }
 
     html(exp, node) {
-        node.innerHTML = this.$vm[exp];
+        this.update(node, 'html', exp)
+    }
+
+    htmlUpdate(node, val) {
+        node.innerHTML = val;
     }
 
     eventHandler(exp, node, dir) {
         node.addEventListener(dir, () => {
             this.$vm.$options.methods[exp].apply(this.$vm)
         })
+    }
+
+    modelHandler(exp, node) {
+    //    1. 更新视图
+        this.update(node, 'model', exp);
+    //    2. 双向绑定
+        node.addEventListener('input', (e) => {
+            this.$vm[exp] = e.target.value;
+        })
+    }
+
+    modelUpdate(node, val) {
+        node.value = val;
     }
 
     // 判断是否是动态指令
@@ -137,6 +157,11 @@ class Compile {
     // 判断是否是事件
     isEvent(name) {
         return name.startsWith('@');
+    }
+
+    // 判断是否是双向绑定
+    isModel(name) {
+        return name.startsWith('k-model');
     }
 
     // 解析动态属性
@@ -154,8 +179,6 @@ class Compile {
     isText(node) {
         return node.nodeType == 3 && /\{\{(.*)\}\}/.test(node.textContent);
     }
-
-
 }
 
 // 每一个视图都对应一个watcher
