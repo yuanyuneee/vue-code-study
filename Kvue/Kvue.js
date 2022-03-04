@@ -194,7 +194,7 @@ class Watcher {
     }
     update() {
         // 绑定this为$vm,传入val
-        // this为什么要指向this.$vm，去掉好像也行?
+        // this为什么要指向this.$vm，去掉好像也行?——如果更新函数内部可能需要使用this，所以绑定this.$vm
         // this.updateFn.call(this.$vm, this.$vm[this.key])
         this.updateFn(this.$vm[this.key])
     }

@@ -5,13 +5,14 @@
 let Vue;
 class Krouter {
     constructor(options) {
+        // 这里的this是指Krouter
         this.$options = options;
 
         // 初始变量
         const initial = window.location.hash.slice(1) || '/';
-        // 把current变成响应式数据
-        Vue.util.defineReactive(this, 'current', initial)
-
+        // 把current变成响应式数据,current变化的时候会根据依赖收集重新render组件
+        // Vue.util.defineReactive(this, 'current', initial)
+        this.current = initial;
         Vue.util.defineReactive(this, 'matched', [])
 
         this.match()
@@ -26,6 +27,7 @@ class Krouter {
         });
     }
 
+    // 遍历路由表，获取匹配关系
     match(routes) {
         let routers = routes || this.$options.routes;
 
@@ -55,6 +57,7 @@ Krouter.install = function (_vue) {
     // 只有创建根实例的时候创建了Router实例
     Vue.mixin({
         beforeCreate() {
+            // 这里的this是Vue根实例和组件
             if (this.$options.router) {
                 Vue.prototype.$router = this.$options.router;
             }
@@ -66,7 +69,7 @@ Krouter.install = function (_vue) {
             this.$vnode.data.routerView = true;
             let depth = 0;
             let parent = this.$parent;
-            // 标记depth
+            // 标记depth,遍历树节点，判断当前的router-view在第几层
             while (parent) {
                 if (parent) {
                     if (parent.$vnode && parent.$vnode.data.routerView) {
