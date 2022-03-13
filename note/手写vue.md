@@ -1,6 +1,6 @@
 ### MVVM
 
-![image-20220307215212872](/Users/yuanyun/Library/Application Support/typora-user-images/image-20220307215212872.png)
+![image-20220307215212872](手写vue.assets/image-20220309081059495.png)
 
 MVVM即model-viewModel-view,viewModel包含数据绑定和事件监听
 
@@ -25,6 +25,7 @@ MVC（C即Controller层），是单向渲染，将model数据渲染到view上。
 4. 模板编译，需要实现update方法，实现视图渲染
 
 5. 依赖收集，实现Watcher和Dep来添加订阅者和通知跟更新
+
 
 ### 数据响应式
 
