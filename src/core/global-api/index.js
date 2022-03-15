@@ -62,9 +62,12 @@ export function initGlobalAPI (Vue: GlobalAPI) {
 
   extend(Vue.options.components, builtInComponents)
 
+  // 实现Vue.use
   initUse(Vue)
+  // 实现Vue.mixin
   initMixin(Vue)
+  // 实现Vue.extend
   initExtend(Vue)
-
+  // 注册实现Vue.component/derective/filter
   initAssetRegisters(Vue)
 }
