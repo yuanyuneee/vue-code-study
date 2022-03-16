@@ -179,17 +179,184 @@ if (options && options._isComponent) {
 2. 初始化
 
    ```js
-   initLifecycle(vm) // 生命周期相关的属性初始化$parent等
-   initEvents(vm) // 自定义组件事件监听
-   initRender(vm) // 插槽处理，$createElm === render(h)
-   // 调用生命周期的钩子函数
-   callHook(vm, 'beforeCreate')
-   // provide/inject
-   // 组件数据和状态初始化
-   initInjections(vm) // resolve injections before data/props
-   initState(vm) // data/props/methods/computed/watch
-   initProvide(vm) // resolve provide after data/props
+   initLifecycle(vm) // $parent,$root,$children,$refs
+   initEvents(vm) // 处理父组件传递的事件和回调
+   initRender(vm) // $slots,$scopedSlots,_c,$createElement
+   callHook(vm, 'beforeCreate') // 调用生命周期钩子函数
+   initInjections(vm) // 获取注入数据
+   initState(vm) // 初始化props，methods，data，computed，watch
+   initProvide(vm) // 提供数据注入
    callHook(vm, 'created')
    ```
 
    
+
+初始化流程
+
+1. new Vue()
+
+2. this._init(options)
+
+   1. 合并选项`mergeOptions`
+
+   2. 初始化`vm._self = vm`
+
+      1. `initLifecycle`
+
+         ```js
+         // 初始化$parent和$children
+         let parent = options.parent
+         if (parent && !options.abstract) {
+           while (parent.$options.abstract && parent.$parent) {
+             parent = parent.$parent
+           }
+           parent.$children.push(vm)
+         }
+         ```
+
+      2. `initEvents(vm)`
+
+      3. initRender
+
+         ```js
+         // 内部版本，用于编译器生成的那些render函数
+         vm._c = (a, b, c, d) => createElement(vm, a, b, c, d, false)
+         // 用户编写render函数使用这个
+         vm.$createElement = (a, b, c, d) => createElement(vm, a, b, c, d, true)
+         
+         
+         // 对$attrs，$listeners属性进行响应式处理
+         if (process.env.NODE_ENV !== 'production') {
+             defineReactive(vm, '$attrs', parentData && parentData.attrs || emptyObject, () => {
+               !isUpdatingChildComponent && warn(`$attrs is readonly.`, vm)
+             }, true)
+             defineReactive(vm, '$listeners', options._parentListeners || emptyObject, () => {
+               !isUpdatingChildComponent && warn(`$listeners is readonly.`, vm)
+             }, true)
+           } else {
+             defineReactive(vm, '$attrs', parentData && parentData.attrs || emptyObject, null, true)
+             defineReactive(vm, '$listeners', options._parentListeners || emptyObject, null, true)
+           }
+         ```
+
+      4. callHook(vm, 'beforeCreate')
+
+      5. initState,初始化props,methods,computed,watch
+
+         ```js
+         function initState (vm: Component) {
+           vm._watchers = []
+           const opts = vm.$options
+           if (opts.props) initProps(vm, opts.props)
+           if (opts.methods) initMethods(vm, opts.methods)
+           if (opts.data) {
+             initData(vm)
+           } else {
+             observe(vm._data = {}, true /* asRootData */)
+           }
+           if (opts.computed) initComputed(vm, opts.computed)
+           if (opts.watch && opts.watch !== nativeWatch) {
+             initWatch(vm, opts.watch)
+           }
+         }
+         ```
+
+      6. initProvide
+
+      7. 如果有el选项，自动挂载
+
+         ```js
+         if (vm.$options.el) {
+           vm.$mount(vm.$options.el)
+         }
+         ```
+
+      8. $mount		
+
+         ```js
+         // 扩展$mount，最后调用mount方法
+         mount.call(this, el, hydrating)
+         
+         // $mount中调用mountComponent方法
+         mountComponent(this, el, hydrating)
+         ```
+
+         mountComponent方法中
+
+         1. callHook(vm, 'beforeMount')
+
+         2. 执行_render渲染组件，获取vdom
+
+         3. vm._update(vm._render(), hydrating)，将vdom转换成dom
+
+            ```js
+            Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
+                const vm: Component = this
+                const prevEl = vm.$el
+                // 上次计算的虚拟dom
+                const prevVnode = vm._vnode
+                const restoreActiveInstance = setActiveInstance(vm)
+                vm._vnode = vnode
+                // 初始化时没有prevVnode
+                if (!prevVnode) {
+                  // initial render
+                  // 初始化只走一次
+                  vm.$el = vm.__patch__(vm.$el, vnode, hydrating, false /* removeOnly */)
+                } else {
+                  // updates
+                  // diff：因为组件只有一个watcher，内部发生变化的可能有多个值，为了知道具体变化点
+                  // 需要做两次vnode之间比对，从而得到不同点，再把这些不同点转换为dom操作，从而做到精准更新
+                  vm.$el = vm.__patch__(prevVnode, vnode)
+                }
+                restoreActiveInstance()
+                // update __vue__ reference
+                if (prevEl) {
+                  prevEl.__vue__ = null
+                }
+                if (vm.$el) {
+                  vm.$el.__vue__ = vm
+                }
+                // if parent is an HOC, update its $el as well
+                if (vm.$vnode && vm.$parent && vm.$vnode === vm.$parent._vnode) {
+                  vm.$parent.$el = vm.$el
+                }
+                // updated hook is called by the scheduler to ensure that children are
+                // updated in a parent's updated hook.
+              }
+            ```
+
+            
+
+   4. new Watcher	
+
+      1. 更新时执行updateComponent，已知上面代码对其进行赋值
+
+         ```
+         updateComponent = () => {
+         // 首先执行render =》 vdom
+         vm._update(vm._render(), hydrating)
+         }
+         ```
+
+         则再次执行_render()和_update函数
+
+      ```js
+      // 执行钩子
+      new Watcher(vm, updateComponent, noop, {
+          before () {
+            if (vm._isMounted && !vm._isDestroyed) {
+              callHook(vm, 'beforeUpdate')
+            }
+          }
+        }, true /* isRenderWatcher */)
+      
+      
+      // watcher内部
+      if (typeof expOrFn === 'function') {
+            // 如果参数2是函数，则表示他是一个组件更新函数
+            this.getter = expOrFn
+          }
+      }
+      ```
+
+      
