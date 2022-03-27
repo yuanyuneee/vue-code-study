@@ -360,3 +360,183 @@ if (options && options._isComponent) {
       ```
 
       
+
+### 响应式处理
+
+**`src/core/instance/state.js`**
+
+```js
+function initData (vm: Component) {
+  proxy(vm, `_data`, key) // 将data里的数据代理到实例上
+  
+  // 遍历响应式处理
+  observe(data, true /* asRootData */)
+
+}
+```
+
+
+
+**`src/core/observer/index.js`**
+
+1. observe
+
+   如果做过响应式处理，直接返回`value.__ob__`,否则对对象进行响应式处理
+
+```js
+export function observe (value: any, asRootData: ?boolean): Observer | void {
+  // Observer作用？
+  // 1.将传入value做响应式处理
+  let ob: Observer | void
+  // 如果已经做过响应式处理，则直接返回ob
+  if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
+    ob = value.__ob__
+  } else if (
+    shouldObserve &&
+    !isServerRendering() &&
+    (Array.isArray(value) || isPlainObject(value)) &&
+    Object.isExtensible(value) &&
+    !value._isVue
+  ) {
+    // 初始化传入需要响应式的对象
+    ob = new Observer(value)
+  }
+ 
+  return ob
+}
+```
+
+2. Observer
+
+   1. 每个Observer都对应一个dep
+   2. `def(value, '__ob__', this)`将data存到`__ob__`属性里，
+   3. 判断对象类型
+      1. 不是数组，`walk`遍历属性，进行响应式处理
+      2. 是数组，覆盖原型方法，遍历，进行响应式处理
+
+   ```js
+   export class Observer {
+     value: any;
+     dep: Dep;
+     vmCount: number; // number of vms that have this object as root $data
+   
+     constructor (value: any) {
+       // 2.此处dep目的？
+       // 如果使用Vue.set/delete添加或删除属性，负责通知更新
+       this.value = value
+       this.dep = new Dep()
+       this.vmCount = 0
+       def(value, '__ob__', this)
+   
+       // 1.分辨传入对象类型
+       if (Array.isArray(value)) {
+         // 现代浏览器，覆盖原型
+         if (hasProto) {
+           protoAugment(value, arrayMethods)
+         } else {
+           copyAugment(value, arrayMethods, arrayKeys)
+         }
+         this.observeArray(value)
+       } else {
+         this.walk(value)
+       }
+     }
+   
+     walk (obj: Object) {
+       const keys = Object.keys(obj)
+       for (let i = 0; i < keys.length; i++) {
+         defineReactive(obj, keys[i])
+       }
+     }
+   
+     observeArray (items: Array<any>) {
+       for (let i = 0, l = items.length; i < l; i++) {
+         observe(items[i])
+       }
+     }
+   
+   ```
+
+   
+
+3. defineReactive
+
+   1. new Dep()，创建每个key对应的dep
+
+   2.   `let childOb = !shallow && observe(val)`递归遍历，如果是对象再次调用observe，可以看出每一个对象都会对应一个dep，每一个key也会对应一个dep
+
+   3. 使用defineProperty给属性设置get/set
+
+      ```js
+      export function defineReactive (
+        obj: Object,
+        key: string,
+        val: any,
+        customSetter?: ?Function,
+        shallow?: boolean
+      ) {
+        // 创建key一一对应的dep
+        const dep = new Dep()
+      
+        const property = Object.getOwnPropertyDescriptor(obj, key)
+        if (property && property.configurable === false) {
+          return
+        }
+      
+        // cater for pre-defined getter/setters
+        const getter = property && property.get
+        const setter = property && property.set
+        if ((!getter || setter) && arguments.length === 2) {
+          val = obj[key]
+        }
+      
+        // 递归遍历
+        let childOb = !shallow && observe(val)
+        Object.defineProperty(obj, key, {
+          enumerable: true,
+          configurable: true,
+          get: function reactiveGetter () {
+            const value = getter ? getter.call(obj) : val
+            // 如果存在，说明此次调用触发者是一个Watcher实例
+            // dep n：n watcher
+            if (Dep.target) {
+              // 建立dep和Dep.target之间依赖关系
+              dep.depend()
+      
+              if (childOb) {
+                // 建立ob内部dep和Dep.target之间依赖关系
+                childOb.dep.depend()
+                // 如果是数组，数组内部所有项都要做相同处理
+                if (Array.isArray(value)) {
+                  dependArray(value)
+                }
+              }
+            }
+            return value
+          },
+          set: function reactiveSetter (newVal) {
+            const value = getter ? getter.call(obj) : val
+            /* eslint-disable no-self-compare */
+            if (newVal === value || (newVal !== newVal && value !== value)) {
+              return
+            }
+            /* eslint-enable no-self-compare */
+            if (process.env.NODE_ENV !== 'production' && customSetter) {
+              customSetter()
+            }
+            // #7981: for accessor properties without setter
+            if (getter && !setter) return
+            if (setter) {
+              setter.call(obj, newVal)
+            } else {
+              val = newVal
+            }
+            childOb = !shallow && observe(newVal)
+            // 变更通知
+            dep.notify()
+          }
+        })
+      }
+      ```
+
+      
