@@ -39,6 +39,7 @@ let timerFunc
 // completely stops working after triggering a few times... so, if native
 // Promise is available, we will use it:
 /* istanbul ignore next, $flow-disable-line */
+// 如果支持Promise，则置为promise.then...
 if (typeof Promise !== 'undefined' && isNative(Promise)) {
   const p = Promise.resolve()
   timerFunc = () => {
@@ -87,7 +88,7 @@ if (typeof Promise !== 'undefined' && isNative(Promise)) {
 export function nextTick (cb?: Function, ctx?: Object) {
   let _resolve
   // 封装一个能够处理错误高阶函数，
-  // 并将它存入callbacks的数组之中
+  // 不会立刻执行并将它存入callbacks的数组之中
   callbacks.push(() => {
     if (cb) {
       try {

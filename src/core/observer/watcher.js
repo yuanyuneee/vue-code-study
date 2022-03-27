@@ -186,10 +186,11 @@ export default class Watcher {
    */
   run () {
     if (this.active) {
-      // render watcher
+      // render watcher,render级别的watcher主要是执行get方法
       const value = this.get()
       // user watcher
       // watch/this.$watch('foo', cb)
+      // 以下if判断是用户级别的watcher，可以忽略
       if (
         value !== this.value ||
         // Deep watchers and watchers on Object/Arrays should fire even

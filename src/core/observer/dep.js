@@ -41,6 +41,7 @@ export default class Dep {
       // subs aren't sorted in scheduler if not running async
       // we need to sort them now to make sure they fire in correct
       // order
+      // 排序，更高层级的组件先执行
       subs.sort((a, b) => a.id - b.id)
     }
     // 循环内部管理所有watcher实例

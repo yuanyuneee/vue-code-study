@@ -166,11 +166,11 @@ function callActivatedHooks (queue) {
 // 尝试将传入watcher实例入队
 export function queueWatcher (watcher: Watcher) {
   const id = watcher.id
-  // 去重
+  // 去重，无论对某个watcher修改多少遍，都是同一个watcher，只有第一次才能入队
   if (has[id] == null) {
     has[id] = true
     if (!flushing) {
-      // 入队
+      // 没有在洗，入队
       queue.push(watcher)
     } else {
       // if already flushing, splice the watcher based on its id
@@ -182,6 +182,7 @@ export function queueWatcher (watcher: Watcher) {
       queue.splice(i + 1, 0, watcher)
     }
     // queue the flush
+    // 按下开关
     if (!waiting) {
       waiting = true
 
